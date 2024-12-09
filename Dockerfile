@@ -1,4 +1,4 @@
-# Use Node.js for building the React app  
+####### Use Node.js for building the React app  
 FROM node:20 AS build  
 
 # Set the working directory  
