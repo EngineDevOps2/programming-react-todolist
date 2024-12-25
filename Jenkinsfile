@@ -77,23 +77,5 @@ pipeline {
             }
       }
    
-     stage('Rollback') {  
-            steps {  
-
-                script {  
-                    
-                    echo 'Rolling back Deployment...'  
-                    input message: 'Proceed to Rollback Deployment?'  
- 
-                     withCredentials([file(credentialsId: 'KUBECONFIG', variable: 'KUBECONFIG')]) {  
-                        sh "kubectl --kubeconfig ${KUBECONFIG} set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_IMAGE}:${commitHash} -n ${NAMESPACE}"  
-                    }  
-                    // kubectl rollout undo ${KUBE_DEPLOYMENT} -n ${KUBE_PROD_NAMESPACE} \
-                    // --to-revision=$(kubectl rollout history ${KUBE_DEPLOYMENT} -n ${KUBE_PROD_NAMESPACE} | grep -w ${env.GIT_COMMIT.take(7)} | awk '{print $1}' | head -n1)  
-
-                }  
-            }  
-     
-     
      }
    }
