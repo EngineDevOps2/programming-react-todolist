@@ -9,6 +9,7 @@ pipeline {
         DOCKER_PASSWORD = 'xxxxxxxxxxxx'
 //        DOCKER_CREDENTIALS_ID = 'docker-credentials-id' // Jenkins credentials for Docker
 //        KUBE_CONFIG_CREDENTIALS_ID = 'kubeconfig-credentials-id' // Jenkins credentials for kubeconfig
+         def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
     }
 
      stages {
@@ -22,7 +23,7 @@ pipeline {
         stage('Build and Tag Docker Image') {
             steps {
                 script {
-                    sh "docker build  -t  ${DOCKER_IMAGE}:${env.BUILD_ID}  ."
+                    sh "docker build  -t  ${DOCKER_IMAGE}:${commitHash}  ."
                 }
             }
         }
@@ -52,7 +53,7 @@ pipeline {
                     withCredentials([string(credentialsId: 'docker_hub', variable: 'docker_hub')]) {
                     sh 'docker login -u enginedevops -p ${docker_hub}'
 }
-                    sh "docker push ${DOCKER_IMAGE}:${env.BUILD_ID}"
+                    sh "docker push ${DOCKER_IMAGE}:${commitHash}"
                 }
             }
         }
@@ -66,16 +67,33 @@ pipeline {
                     // Setup Kubernetes context
                      withCredentials([file(credentialsId: 'KUBECONFIG', variable: 'KUBECONFIG')]) {
 
-                    sh "kubectl --kubeconfig ${KUBECONFIG} set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_IMAGE}:${env.BUILD_ID}   -n ${NAMESPACE}"
-                    // sh "kubectl --kubeconfig ${KUBECONFIG}  rollout status deployment/${K8S_DEPLOYMENT_NAME}  -n ${NAMESPACE} "
+                    sh "kubectl --kubeconfig ${KUBECONFIG} set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_IMAGE}:${commitHash}   -n ${NAMESPACE}"
+
                     
 }
-                        // sh "kubectl --kubeconfig ${KUBECONFIG} set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_IMAGE}:${env.BUILD_ID}   -n ${NAMESPACE}"
-                        // sh "kubectl --kubeconfig ${KUBECONFIG}  rollout status deployment/${K8S_DEPLOYMENT_NAME}  -n ${NAMESPACE} "
- 
+
                 }
 
             }
-        }
-   }
+      }
+   
+     stage('Rollback') {  
+            steps {  
+
+                script {  
+                    
+                    echo 'Rolling back Deployment...'  
+                    input message: 'Proceed to Rollback Deployment?'  
+ 
+                     withCredentials([file(credentialsId: 'KUBECONFIG', variable: 'KUBECONFIG')]) {  
+                        sh "kubectl --kubeconfig ${KUBECONFIG} set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_IMAGE}:${commitHash} -n ${NAMESPACE}"  
+                    }  
+                    // kubectl rollout undo ${KUBE_DEPLOYMENT} -n ${KUBE_PROD_NAMESPACE} \
+                    // --to-revision=$(kubectl rollout history ${KUBE_DEPLOYMENT} -n ${KUBE_PROD_NAMESPACE} | grep -w ${env.GIT_COMMIT.take(7)} | awk '{print $1}' | head -n1)  
+
+                }  
+            }  
+     
+     
+     }
    }
